@@ -23,8 +23,10 @@ static void (*free_org)(void *ptr) = NULL;
 void mem_trace_init(void) __attribute__((constructor));
 void mem_trace_init(void)
 {
+	unsetenv("LD_PRELOAD");
+
 	malloc_org = dlsym(RTLD_NEXT, "malloc");
-	fprintf(stderr, "malloc: using trace hooks..");
+	fprintf(stderr, "> malloc: using trace hooks..");
 	if (malloc_org == NULL) {
 		char *error = dlerror();
 		if (error == NULL) {
@@ -36,7 +38,7 @@ void mem_trace_init(void)
 	fprintf(stderr, "ok\n");
 
 	free_org = dlsym(RTLD_NEXT, "free");
-	fprintf(stderr, "free: using trace hooks..");
+	fprintf(stderr, "> free: using trace hooks..");
 	if (free_org == NULL) {
 		char *error = dlerror();
 		if (error == NULL) {
@@ -51,7 +53,7 @@ void mem_trace_init(void)
 		fprintf(stderr, "atexit() failed.\n");
 		exit(EXIT_FAILURE);
 	}
-	fprintf(stderr, "reporting when program exit..\n");
+	fprintf(stderr, "Reporting when program exit..\n");
 	return;
 }
 
@@ -168,6 +170,8 @@ static void mtr_report(void)
 	FILE *fp;
 	struct rb_node *node;
 	struct trace_record *rec;
+
+	check_addr2line();
 
 	fp = fopen("mem_trace.out", "w");
 	if (fp == NULL) {
