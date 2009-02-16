@@ -59,7 +59,7 @@ void mem_trace_init(void)
 	return;
 }
 
-#ifdef X86_32BIT
+#ifdef X86
 void **get_ebp(int dummy)
 {
 	void **ebp = (void **)&dummy - 2;
@@ -82,7 +82,7 @@ void *malloc(size_t size)
 		return p;
 	}
 
-#ifdef X86_32BIT
+#ifdef X86
 	ebp = get_ebp(dummy);
 	ret = NULL;
 	while (*ebp) {
@@ -90,9 +90,14 @@ void *malloc(size_t size)
 		bt[i++] = (unsigned long)*ret;
 		ebp = (void **)(*ebp);
 	}
-#endif
-#ifdef SPARC_32BIT
+#elif SPARC
 	asm volatile ("movl 8(%%fp), %0"
+		      : "=r" (caller_addr)
+		      :
+		      );
+	bt[i++] = caller_addr;
+#elif PARISC
+	asm volatile ("copy %%r2, %0"
 		      : "=r" (caller_addr)
 		      :
 		      );
