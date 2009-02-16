@@ -8,6 +8,8 @@
 
 #include "mem_trace.h"
 
+static int trace_done = 0;
+
 /* record tree */
 struct rb_root rt = RB_ROOT;
 static void mtr_store_alloc_info(unsigned long *bt, int n, unsigned long addr, 
@@ -24,7 +26,7 @@ void mem_trace_init(void) __attribute__((constructor));
 void mem_trace_init(void)
 {
 	unsetenv("LD_PRELOAD");
-
+	
 	malloc_org = dlsym(RTLD_NEXT, "malloc");
 	fprintf(stderr, "> malloc: using trace hooks..");
 	if (malloc_org == NULL) {
@@ -74,6 +76,11 @@ void *malloc(size_t size)
 	unsigned long caller_addr = 0;
 	void **ebp, **ret;
 	unsigned long bt[MAX_STACK];
+	
+	if (trace_done) {
+		p = malloc_org(size);
+		return p;
+	}
 
 #ifdef X86_32BIT
 	ebp = get_ebp(dummy);
@@ -102,7 +109,8 @@ void free(void *ptr)
 {
 	free_org(ptr);
 	
-	mtr_remove(&rt, (unsigned long)ptr);
+	if (!trace_done)
+		mtr_remove(&rt, (unsigned long)ptr);
 	return;
 }
 
@@ -170,8 +178,13 @@ static void mtr_report(void)
 	FILE *fp;
 	struct rb_node *node;
 	struct trace_record *rec;
+	Dl_info dlip;
+	char exec_name[BUFSIZ];
+
+	trace_done = 1;
 
 	check_addr2line();
+	get_exec_name(exec_name);
 
 	fp = fopen("mem_trace.out", "w");
 	if (fp == NULL) {
@@ -183,10 +196,19 @@ static void mtr_report(void)
 	for (node = rb_first(&rt); node; node = rb_next(node)) {
 		j = 0;
 		rec = container_of(node, struct trace_record, node);
-		fprintf(fp, "[%09d] %#lx: addr(%#lx) %ld lost.\n",
-				i++, rec->bt[j++], rec->addr, rec->size);
+		dladdr((void *)rec->bt[j], &dlip);
+		fprintf(fp, "[%#lx] %s addr(%#lx) %ld byte(s) lost.\n",
+				rec->bt[j], 
+				dlip.dli_sname,
+				rec->addr, 
+				rec->size);
+		j++;
 		while (rec->bt[j] != 0) {
-			fprintf(fp, "-> %#lx \n", rec->bt[j++]);
+			dladdr((void *)rec->bt[j], &dlip);
+			fprintf(fp, "[%#lx] %s \n", 
+					rec->bt[j],
+					dlip.dli_sname);
+			j++;
 		}
 		if (j > 1)
 			fprintf(fp, "\n");
