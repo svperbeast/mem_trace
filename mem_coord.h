@@ -1,13 +1,16 @@
 #ifndef COORD_INCLUDED
 #define COORD_INCLUDED
 
-void check_addr2line(void);
+extern void check_addr2line(void);
+extern int get_exec_path(char *exec_path, int len);
 
 /*
  * IN@addr: address
- * OUT@file: file name
- * OUT@line: line number
+ * IN@exec: executable path
+ * OUT@func: function
+ * OUT@coord: coordnate (file:line)
  */
-void get_coordinate(unsigned long addr, char *file, char *line);
+extern void get_coordinate(unsigned long addr, const char *exec, 
+				char **func, char **coord);
 
 #endif /* !COORD_INCLUDED */

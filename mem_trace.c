@@ -5,10 +5,12 @@
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <limits.h>
 
 #include "mem_trace.h"
 
 static int trace_done = 0;
+static char exec_path[PATH_MAX];
 
 /* record tree */
 struct rb_root rt = RB_ROOT;
@@ -26,6 +28,12 @@ void mem_trace_init(void) __attribute__((constructor));
 void mem_trace_init(void)
 {
 	unsetenv("LD_PRELOAD");
+
+	if (get_exec_path(exec_path, sizeof(exec_path)) < 0) {
+		fprintf(stderr, "can not get executable path.\n");
+		exit(1);
+	}
+	fprintf(stderr, "\n> executable: %s\n", exec_path);
 	
 	malloc_org = dlsym(RTLD_NEXT, "malloc");
 	fprintf(stderr, "> malloc: using trace hooks..");
@@ -185,11 +193,11 @@ static void mtr_report(void)
 	struct trace_record *rec;
 	Dl_info dlip;
 	char exec_name[BUFSIZ];
+	char *func, *coord;
 
 	trace_done = 1;
 
 	check_addr2line();
-	get_exec_name(exec_name);
 
 	fp = fopen("mem_trace.out", "w");
 	if (fp == NULL) {
@@ -202,17 +210,35 @@ static void mtr_report(void)
 		j = 0;
 		rec = container_of(node, struct trace_record, node);
 		dladdr((void *)rec->bt[j], &dlip);
-		fprintf(fp, "[%#lx] %s addr(%#lx) %ld byte(s) lost.\n",
-				rec->bt[j], 
-				dlip.dli_sname,
-				rec->addr, 
-				rec->size);
+		if (dlip.dli_sname == NULL) {
+			get_coordinate(rec->bt[j], dlip.dli_fname,
+				       &func, &coord);
+			fprintf(fp, "[%p]\t%s (%s) %ld byte(s) lost.\n",
+					(void *)rec->bt[j],
+					func,
+					coord,
+					rec->size);
+		} else { 
+			fprintf(fp, "[%p]\t%s %ld byte(s) lost.\n",
+					(void *)rec->bt[j], 
+					dlip.dli_sname,
+					rec->size);
+		}
 		j++;
 		while (rec->bt[j] != 0) {
 			dladdr((void *)rec->bt[j], &dlip);
-			fprintf(fp, "[%#lx] %s \n", 
-					rec->bt[j],
-					dlip.dli_sname);
+			if (dlip.dli_sname == NULL) {
+				get_coordinate(rec->bt[j], dlip.dli_fname,
+				       	       &func, &coord);
+				fprintf(fp, "[%p]\t%s (%s)\n",
+						(void *)rec->bt[j],
+						func,
+						coord);
+			} else {
+				fprintf(fp, "[%p]\t%s\n", 
+						(void *)rec->bt[j],
+						dlip.dli_sname);
+			}
 			j++;
 		}
 		if (j > 1)
