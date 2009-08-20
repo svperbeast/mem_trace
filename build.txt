@@ -1,4 +1,0 @@
-example:
-	gcc -shared -fPIC -D<ARCH> mem_trace.c rbtree.c -o mem_trace.so -ldl
-
-	ARCH: X86_32BIT | SPARC_32BIT
