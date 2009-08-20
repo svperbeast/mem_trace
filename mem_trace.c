@@ -218,6 +218,8 @@ static void mtr_report(void)
 					func,
 					coord,
 					rec->size);
+			free(func);
+			free(coord);
 		} else { 
 			fprintf(fp, "[%p]\t%s %ld byte(s) lost.\n",
 					(void *)rec->bt[j], 
@@ -234,6 +236,8 @@ static void mtr_report(void)
 						(void *)rec->bt[j],
 						func,
 						coord);
+				free(func);
+				free(coord);
 			} else {
 				fprintf(fp, "[%p]\t%s\n", 
 						(void *)rec->bt[j],
