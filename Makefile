@@ -1,8 +1,10 @@
 CC = gcc
 
-DEFS = -DX86
+# Processor: X86, SPARC, PARISC
+# OS: LINUX, SUNOS, HP_UX
+DEFS = -DX86 -DLINUX
 
-CFLAGS = -shared -fPIC $(DEFS)
+CFLAGS = $(DEFS)
 
 LIBS = -ldl
 
