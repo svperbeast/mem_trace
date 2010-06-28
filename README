@@ -12,7 +12,16 @@ after checking the report, reset LD_PRELOAD.
 
 % export LD_PRELOAD=
 
+output:
 
+$ cat mem_trace.out
+[0xb7ff72ed]	malloc 5 byte(s) lost.
+[0xb7f01000]	__strdup
+[0x8048406]	func (test.c:7)
+[0x8048432]	main (test.c:24)
+[0xb7ea0685]	__libc_start_main
+
+addr2line doesn't exist:
 
 * To examine caller address
 
